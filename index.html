@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kavishe App Store</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: { bg:'#0b0f0d', panel:'#121815', panel2:'#171f1b', line:'#233029', emerald:'#1fae66', emeraldDeep:'#0f7a48', gold:'#d4a13d' },
+        fontFamily: { display:['"Poppins"','sans-serif'], body:['"Inter"','sans-serif'] }
+      }
+    }
+  }
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  body { background: radial-gradient(circle at 20% -10%, #123321 0%, #0b0f0d 45%) fixed; }
+  ::-webkit-scrollbar { height: 6px; width: 6px; }
+  ::-webkit-scrollbar-thumb { background: #233029; border-radius: 10px; }
+  .cat-tab.active { background: linear-gradient(135deg,#1fae66,#0f7a48); color:#0b0f0d; border-color: transparent; }
+  .app-card { transition: transform .15s ease, border-color .15s ease; }
+  .app-card:hover { transform: translateY(-3px); border-color: #1fae66; }
+  .modal-backdrop { backdrop-filter: blur(6px); }
+  .spinner { border-top-color: #1fae66; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .fade-in { animation: fadeIn .25s ease; }
+  @keyframes fadeIn { from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
+</style>
+</head>
+<body class="bg-bg text-gray-100 font-body min-h-screen">
+
+<!-- HEADER -->
+<header class="sticky top-0 z-30 bg-bg/90 backdrop-blur border-b border-line">
+  <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+    <div class="flex items-center gap-2">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald to-emeraldDeep flex items-center justify-center shadow-lg shadow-emeraldDeep/30">
+        <i class="fa-solid fa-shop text-bg text-sm"></i>
+      </div>
+      <div>
+        <h1 class="font-display font-extrabold text-lg leading-none">Kavishe <span class="text-emerald">App Store</span></h1>
+        <p class="text-[10px] text-gray-500 -mt-0.5">Duka la Apps za Kavishe</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <button id="adminBtn" onclick="openAdminPanel()" class="hidden items-center gap-2 text-sm bg-gold/10 border border-gold/40 text-gold px-3 py-1.5 rounded-full hover:bg-gold/20 transition">
+        <i class="fa-solid fa-user-shield"></i> <span class="hidden sm:inline">Admin</span>
+      </button>
+      <button onclick="openAuthModal()" class="hidden sm:flex items-center gap-2 text-sm bg-panel2 border border-line px-3 py-1.5 rounded-full hover:border-emerald transition">
+        <i class="fa-regular fa-user"></i> <span id="userAreaLabel">Ingia</span>
+      </button>
+      <button onclick="openAuthModal()" class="sm:hidden w-9 h-9 flex items-center justify-center bg-panel2 border border-line rounded-full">
+        <i class="fa-regular fa-user"></i>
+      </button>
+    </div>
+  </div>
+  <div class="max-w-6xl mx-auto px-4 pb-3">
+    <div class="relative">
+      <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 text-sm"></i>
+      <input id="searchInput" oninput="renderApps()" placeholder="Tafuta app..." class="w-full bg-panel border border-line rounded-full pl-10 pr-4 py-2.5 text-sm outline-none focus:border-emerald transition placeholder:text-gray-600">
+    </div>
+  </div>
+</header>
+
+<!-- MATANGAZO TICKER (scrolling text announcements) -->
+<div id="tickerWrap" class="hidden bg-emerald/10 border-b border-emerald/30 overflow-hidden">
+  <div class="flex items-center gap-2 py-2">
+    <i class="fa-solid fa-bullhorn text-emerald text-xs ml-4 shrink-0"></i>
+    <div class="overflow-hidden flex-1">
+      <div id="tickerTrack" class="whitespace-nowrap text-xs text-emerald font-medium" style="display:inline-block; padding-left:100%; animation: ticker 22s linear infinite;"></div>
+    </div>
+  </div>
+</div>
+<style>
+  @keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-100%); } }
+</style>
+
+<!-- CATEGORY TABS -->
+<div class="max-w-6xl mx-auto px-4 mt-4">
+  <div id="catTabs" class="flex gap-2 overflow-x-auto pb-2 no-scrollbar"></div>
+</div>
+
+<!-- COMING SOON / VIDEO ANNOUNCEMENTS -->
+<div id="comingSoonWrap" class="hidden max-w-6xl mx-auto px-4 mt-2">
+  <p class="text-xs font-semibold text-gold mb-2"><i class="fa-solid fa-star mr-1"></i>Yanakuja Hivi Karibuni</p>
+  <div id="comingSoonTrack" class="flex gap-3 overflow-x-auto pb-2 no-scrollbar"></div>
+</div>
+
+<!-- APP GRID -->
+<main class="max-w-6xl mx-auto px-4 py-6">
+  <div id="loadingApps" class="flex flex-col items-center justify-center py-20 text-gray-500">
+    <div class="w-8 h-8 border-2 border-line rounded-full spinner mb-3"></div>
+    <p class="text-sm">Inapakia apps...</p>
+  </div>
+  <div id="emptyState" class="hidden flex-col items-center justify-center py-20 text-gray-500 text-center">
+    <i class="fa-solid fa-box-open text-3xl mb-3 text-gray-700"></i>
+    <p class="text-sm">Hakuna app kwenye category hii kwa sasa.</p>
+  </div>
+  <div id="appGrid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4"></div>
+</main>
+
+<footer class="max-w-6xl mx-auto px-4 py-8 text-center text-xs text-gray-600 border-t border-line mt-6">
+  <p>Kavishe App Store &copy; <span id="yearNow"></span> — Apps zote zimetengenezwa Tanzania </p>
+</footer>
+
+<!-- APP DETAIL MODAL -->
+<div id="detailModal" class="hidden fixed inset-0 z-40 modal-backdrop bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4">
+  <div class="fade-in bg-panel border border-line w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl p-6 relative">
+    <button onclick="closeModal('detailModal')" class="absolute top-4 right-4 text-gray-500 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+    <div id="detailContent"></div>
+  </div>
+</div>
+
+<!-- AUTH MODAL -->
+<div id="authModal" class="hidden fixed inset-0 z-40 modal-backdrop bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4">
+  <div class="fade-in bg-panel border border-line w-full sm:max-w-sm sm:rounded-2xl rounded-t-2xl p-6 relative">
+    <button onclick="closeModal('authModal')" class="absolute top-4 right-4 text-gray-500 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+    <h2 id="authTitle" class="font-display font-bold text-lg mb-1">Karibu tena</h2>
+    <p class="text-xs text-gray-500 mb-4">Ingia ili uweze kupakua apps.</p>
+    <div id="authError" class="hidden text-xs bg-red-500/10 text-red-400 border border-red-500/30 rounded-lg px-3 py-2 mb-3"></div>
+    <div class="space-y-3">
+      <input id="authEmail" type="email" placeholder="Barua pepe" class="w-full bg-panel2 border border-line rounded-lg px-3 py-2.5 text-sm outline-none focus:border-emerald">
+      <input id="authPass" type="password" placeholder="Password" class="w-full bg-panel2 border border-line rounded-lg px-3 py-2.5 text-sm outline-none focus:border-emerald">
+      <button id="authSubmitBtn" onclick="submitAuth()" class="w-full bg-gradient-to-r from-emerald to-emeraldDeep text-bg font-semibold py-2.5 rounded-lg text-sm hover:opacity-90 transition">Ingia</button>
+      <p class="text-xs text-center text-gray-500">
+        <span id="authSwitchLabel">Huna akaunti?</span>
+        <button onclick="toggleAuthMode()" id="authSwitchBtn" class="text-emerald font-medium">Jisajili</button>
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- VIDEO ANNOUNCEMENT MODAL -->
+<div id="videoModal" class="hidden fixed inset-0 z-40 modal-backdrop bg-black/70 flex items-center justify-center p-4">
+  <div class="fade-in bg-panel border border-line w-full max-w-lg rounded-2xl p-4 relative">
+    <button onclick="closeModal('videoModal')" class="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-panel border border-line flex items-center justify-center text-gray-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+    <div id="videoContent"></div>
+  </div>
+</div>
+
+<!-- LOCKED APP MODAL -->
+<div id="lockModal" class="hidden fixed inset-0 z-50 modal-backdrop bg-black/70 flex items-center justify-center p-4">
+  <div class="fade-in bg-panel border border-gold/40 w-full max-w-sm rounded-2xl p-6 relative text-center">
+    <button onclick="closeModal('lockModal')" class="absolute top-4 right-4 text-gray-500 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+    <i class="fa-solid fa-lock text-3xl text-gold mb-3"></i>
+    <h3 class="font-display font-bold text-base mb-2">App Imefungwa</h3>
+    <p id="lockMessageText" class="text-sm text-gray-400 leading-relaxed"></p>
+  </div>
+</div>
+
+<!-- ADMIN PANEL MODAL -->
+<div id="adminModal" class="hidden fixed inset-0 z-50 modal-backdrop bg-black/70 flex items-end sm:items-center justify-center p-0 sm:p-4">
+  <div class="fade-in bg-panel border border-line w-full sm:max-w-2xl sm:rounded-2xl rounded-t-2xl relative max-h-[92vh] flex flex-col">
+    <div class="flex items-center justify-between px-5 pt-5 pb-3 border-b border-line shrink-0">
+      <h2 class="font-display font-bold text-lg"><i class="fa-solid fa-user-shield text-gold mr-1.5"></i>Admin Panel</h2>
+      <button onclick="closeModal('adminModal')" class="text-gray-500 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+    </div>
+    <div class="flex gap-1.5 px-5 pt-3 overflow-x-auto no-scrollbar shrink-0">
+      <button onclick="switchAdminTab('apps')" data-atab="apps" class="admin-tab text-xs font-medium px-3 py-1.5 rounded-full border border-line whitespace-nowrap">Apps</button>
+      <button onclick="switchAdminTab('categories')" data-atab="categories" class="admin-tab text-xs font-medium px-3 py-1.5 rounded-full border border-line whitespace-nowrap">Categories</button>
+      <button onclick="switchAdminTab('ads')" data-atab="ads" class="admin-tab text-xs font-medium px-3 py-1.5 rounded-full border border-line whitespace-nowrap">Matangazo</button>
+      <button onclick="switchAdminTab('users')" data-atab="users" class="admin-tab text-xs font-medium px-3 py-1.5 rounded-full border border-line whitespace-nowrap">Watumiaji</button>
+    </div>
+    <div class="overflow-y-auto px-5 py-4 flex-1">
+      <div id="adminTabApps" class="admin-tab-panel"></div>
+      <div id="adminTabCategories" class="admin-tab-panel hidden"></div>
+      <div id="adminTabAds" class="admin-tab-panel hidden"></div>
+      <div id="adminTabUsers" class="admin-tab-panel hidden"></div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast" class="hidden fixed bottom-5 left-1/2 -translate-x-1/2 bg-panel2 border border-line text-sm px-4 py-2.5 rounded-full shadow-xl z-[70]"></div>
+<style>
+  .admin-tab.active { background: linear-gradient(135deg,#1fae66,#0f7a48); color:#0b0f0d; border-color: transparent; }
+  .admin-tab { background:#171f1b; color:#9ca3af; }
+  .adm-input { width:100%; background:#171f1b; border:1px solid #233029; border-radius:0.5rem; padding:0.55rem 0.75rem; font-size:0.82rem; outline:none; }
+  .adm-input:focus { border-color:#1fae66; }
+  .adm-label { font-size:0.68rem; color:#9ca3af; margin-bottom:0.2rem; display:block; }
+</style>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+<script>
+document.getElementById('yearNow').textContent = new Date().getFullYear();
+
+// ---------- FIREBASE ----------
+const firebaseConfig = {
+  apiKey: "AIzaSyAemCJ9p0IRAQovVT6YJTye7I98L1q_oAY",
+  authDomain: "kavishe-app-store.firebaseapp.com",
+  databaseURL: "https://kavishe-app-store-default-rtdb.firebaseio.com",
+  projectId: "kavishe-app-store",
+  storageBucket: "kavishe-app-store.firebasestorage.app",
+  messagingSenderId: "273060621835",
+  appId: "1:273060621835:web:6c7444917f0df8de46210e"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.database();
+const storage = firebase.storage();
+
+// ---------- CATEGORIES (dynamic, stored in Firebase) ----------
+const DEFAULT_CATEGORIES = {
+  elimu:        { label: 'Elimu', icon: 'fa-graduation-cap' },
+  dini:         { label: 'Kanisa/Dini', icon: 'fa-cross' },
+  usalama:      { label: 'Usalama & Ufuatiliaji', icon: 'fa-satellite-dish' },
+  admin:        { label: 'Admin/Management', icon: 'fa-briefcase' },
+  entertainment:{ label: 'Entertainment', icon: 'fa-film' },
+  zana:         { label: 'Zana/Utility', icon: 'fa-screwdriver-wrench' },
+  premium:      { label: 'Premium', icon: 'fa-crown' },
+};
+let allCategories = {}; // key -> {label, icon}  (excludes 'all')
+let activeCategory = 'all';
+
+db.ref('categories').once('value').then(snap => {
+  if (!snap.exists()) {
+    db.ref('categories').set(DEFAULT_CATEGORIES); // seed once
+  }
+});
+db.ref('categories').on('value', snap => {
+  allCategories = snap.val() || {};
+  renderCatTabs();
+  renderApps();
+  if (isAdminUser) renderAdminCategories();
+});
+
+function catLabel(key) {
+  if (key === 'all') return 'Zote';
+  return (allCategories[key] || {}).label || key;
+}
+function catIcon(key) {
+  if (key === 'all') return 'fa-border-all';
+  return (allCategories[key] || {}).icon || 'fa-shapes';
+}
+function blockedCatSet() {
+  const bc = (currentUserData && currentUserData.blockedCategories) || {};
+  return new Set(Object.keys(bc).filter(k => bc[k]));
+}
+
+function renderCatTabs() {
+  const wrap = document.getElementById('catTabs');
+  const blocked = blockedCatSet();
+  const keys = ['all', ...Object.keys(allCategories)].filter(k => k === 'all' || !blocked.has(k));
+  if (blocked.has(activeCategory)) activeCategory = 'all';
+  wrap.innerHTML = keys.map(k => `
+    <button onclick="selectCategory('${k}')" data-key="${k}"
+      class="cat-tab whitespace-nowrap flex items-center gap-1.5 text-xs font-medium px-3.5 py-2 rounded-full border border-line bg-panel text-gray-300 hover:border-emerald transition ${k===activeCategory?'active':''}">
+      <i class="fa-solid ${catIcon(k)}"></i> ${catLabel(k)}
+    </button>`).join('');
+}
+function selectCategory(key) {
+  activeCategory = key;
+  document.querySelectorAll('.cat-tab').forEach(t => t.classList.toggle('active', t.dataset.key === key));
+  renderApps();
+}
+
+// ---------- STATE ----------
+let allApps = {};
+let allAnnouncements = {};
+let allUsers = {};
+let currentUser = null;
+let currentUserData = null; // {email, blocked, blockedCategories, isAdmin}
+let isAdminUser = false;
+let authMode = 'login';
+let pendingDownloadAppId = null;
+
+// ---------- LOAD APPS ----------
+db.ref('apps').on('value', snap => {
+  allApps = snap.val() || {};
+  document.getElementById('loadingApps').classList.add('hidden');
+  renderApps();
+  if (isAdminUser) renderAdminApps();
+});
+
+function renderApps() {
+  const grid = document.getElementById('appGrid');
+  const search = document.getElementById('searchInput').value.trim().toLowerCase();
+  const blocked = blockedCatSet();
+  const entries = Object.entries(allApps).filter(([id, app]) => {
+    if (blocked.has(app.category)) return false;
+    const matchesCat = activeCategory === 'all' || app.category === activeCategory;
+    const matchesSearch = !search || (app.name || '').toLowerCase().includes(search);
+    return matchesCat && matchesSearch;
+  });
+  document.getElementById('emptyState').classList.toggle('hidden', entries.length !== 0);
+  document.getElementById('emptyState').classList.toggle('flex', entries.length === 0);
+  grid.innerHTML = entries.map(([id, app]) => `
+    <div class="app-card bg-panel border border-line rounded-2xl p-3 cursor-pointer relative" onclick="openDetail('${id}')">
+      ${app.locked ? `<span class="absolute top-2 right-2 w-6 h-6 rounded-full bg-gold/90 flex items-center justify-center text-bg text-[10px]"><i class="fa-solid fa-lock"></i></span>` : ''}
+      <div class="w-full aspect-square rounded-xl bg-panel2 border border-line mb-3 overflow-hidden flex items-center justify-center">
+        ${app.icon ? `<img src="${app.icon}" class="w-full h-full object-cover" onerror="this.style.display='none'">` : `<i class="fa-solid fa-cube text-2xl text-gray-600"></i>`}
+      </div>
+      <p class="font-semibold text-sm truncate">${app.name || 'App'}</p>
+      <p class="text-[11px] text-emerald mt-0.5">${catLabel(app.category)}</p>
+    </div>
+  `).join('');
+}
+
+function openDetail(id) {
+  const app = allApps[id];
+  if (!app) return;
+  document.getElementById('detailContent').innerHTML = `
+    <div class="w-20 h-20 rounded-2xl bg-panel2 border border-line mb-4 overflow-hidden flex items-center justify-center">
+      ${app.icon ? `<img src="${app.icon}" class="w-full h-full object-cover">` : `<i class="fa-solid fa-cube text-3xl text-gray-600"></i>`}
+    </div>
+    <h3 class="font-display font-bold text-lg">${app.name}</h3>
+    <p class="text-xs text-emerald mb-3">${catLabel(app.category)}</p>
+    <p class="text-sm text-gray-400 leading-relaxed mb-5">${app.description || ''}</p>
+    ${app.locked ? `
+      <div class="bg-gold/10 border border-gold/30 rounded-xl px-3 py-2 mb-3 text-xs text-gold"><i class="fa-solid fa-lock mr-1"></i> App hii imefungwa</div>
+    ` : ''}
+    <button onclick="requestDownload('${id}')" class="w-full bg-gradient-to-r from-emerald to-emeraldDeep text-bg font-semibold py-3 rounded-xl text-sm">
+      <i class="fa-solid fa-download mr-1"></i> Install App
+    </button>
+  `;
+  openModal('detailModal');
+}
+
+// ---------- AUTH ----------
+auth.onAuthStateChanged(user => {
+  currentUser = user;
+  document.getElementById('userAreaLabel').textContent = user ? (user.email.split('@')[0]) : 'Ingia';
+  if (user) {
+    db.ref('users/' + user.uid).update({ email: user.email, lastSeen: Date.now() });
+    db.ref('users/' + user.uid).off('value');
+    db.ref('users/' + user.uid).on('value', snap => {
+      currentUserData = snap.val() || {};
+      isAdminUser = !!currentUserData.isAdmin;
+      document.getElementById('adminBtn').classList.toggle('hidden', !isAdminUser);
+      document.getElementById('adminBtn').classList.toggle('flex', isAdminUser);
+      if (currentUserData.blocked) {
+        showToast('Akaunti yako imefungwa. Wasiliana na admin.');
+        closeModal('adminModal');
+        auth.signOut();
+        return;
+      }
+      renderCatTabs();
+      renderApps();
+      if (isAdminUser) {
+        renderAdminApps(); renderAdminCategories(); renderAdminAds(); renderAdminUsers();
+      }
+    });
+    if (pendingDownloadAppId) {
+      const id = pendingDownloadAppId;
+      pendingDownloadAppId = null;
+      closeModal('authModal');
+      triggerDownload(id);
+    }
+  } else {
+    currentUserData = null;
+    isAdminUser = false;
+    document.getElementById('adminBtn').classList.add('hidden');
+    document.getElementById('adminBtn').classList.remove('flex');
+    renderCatTabs();
+    renderApps();
+  }
+});
+
+function openAuthModal() {
+  if (currentUser) { auth.signOut(); showToast('Umetoka kwenye akaunti'); return; }
+  authMode = 'login';
+  updateAuthModalMode();
+  openModal('authModal');
+}
+function toggleAuthMode() {
+  authMode = authMode === 'login' ? 'signup' : 'login';
+  updateAuthModalMode();
+}
+function updateAuthModalMode() {
+  const isLogin = authMode === 'login';
+  document.getElementById('authTitle').textContent = isLogin ? 'Karibu tena' : 'Fungua Akaunti';
+  document.getElementById('authSubmitBtn').textContent = isLogin ? 'Ingia' : 'Jisajili';
+  document.getElementById('authSwitchLabel').textContent = isLogin ? 'Huna akaunti?' : 'Una akaunti tayari?';
+  document.getElementById('authSwitchBtn').textContent = isLogin ? 'Jisajili' : 'Ingia';
+  document.getElementById('authError').classList.add('hidden');
+}
+function submitAuth() {
+  const email = document.getElementById('authEmail').value.trim();
+  const pass = document.getElementById('authPass').value;
+  document.getElementById('authError').classList.add('hidden');
+  if (!email || !pass) { showAuthError('Jaza barua pepe na password.'); return; }
+  const action = authMode === 'login'
+    ? auth.signInWithEmailAndPassword(email, pass)
+    : auth.createUserWithEmailAndPassword(email, pass);
+  action.then(() => {
+    document.getElementById('authEmail').value = '';
+    document.getElementById('authPass').value = '';
+    if (!pendingDownloadAppId) closeModal('authModal');
+  }).catch(err => showAuthError(translateAuthError(err)));
+}
+function showAuthError(msg) {
+  const box = document.getElementById('authError');
+  box.textContent = msg;
+  box.classList.remove('hidden');
+}
+function translateAuthError(err) {
+  const map = {
+    'auth/user-not-found': 'Akaunti haipo. Jisajili kwanza.',
+    'auth/wrong-password': 'Password sio sahihi.',
+    'auth/email-already-in-use': 'Barua pepe hii tayari inatumika.',
+    'auth/invalid-email': 'Barua pepe si sahihi.',
+    'auth/weak-password': 'Password ni fupi mno (angalau herufi 6).',
+  };
+  return map[err.code] || 'Hitilafu imetokea, jaribu tena.';
+}
+
+// ---------- DOWNLOAD FLOW ----------
+function requestDownload(id) {
+  const app = allApps[id];
+  if (app && app.locked) {
+    document.getElementById('lockMessageText').textContent = app.lockMessage || 'App hii imefungwa kwa sasa. Wasiliana na admin kwa maelezo zaidi.';
+    openModal('lockModal');
+    return;
+  }
+  if (!currentUser) {
+    pendingDownloadAppId = id;
+    authMode = 'login';
+    updateAuthModalMode();
+    closeModal('detailModal');
+    openModal('authModal');
+    return;
+  }
+  triggerDownload(id);
+}
+function triggerDownload(id) {
+  const app = allApps[id];
+  if (!app || !app.downloadLink) { showToast('Link ya kupakua haipo.'); return; }
+  db.ref('downloads').push({ appId: id, uid: currentUser.uid, at: Date.now() });
+  window.open(app.downloadLink, '_blank');
+  closeModal('detailModal');
+  showToast('Inafungua download...');
+}
+
+// ---------- MATANGAZO (ANNOUNCEMENTS) ----------
+db.ref('announcements').on('value', snap => {
+  allAnnouncements = snap.val() || {};
+  renderTicker(allAnnouncements);
+  renderComingSoon(allAnnouncements);
+  if (isAdminUser) renderAdminAds();
+});
+
+function renderTicker(ads) {
+  const texts = Object.values(ads).filter(a => a.type === 'text' && a.text);
+  const wrap = document.getElementById('tickerWrap');
+  const track = document.getElementById('tickerTrack');
+  if (!texts.length) { wrap.classList.add('hidden'); return; }
+  track.textContent = texts.map(a => a.text).join('   •   ');
+  wrap.classList.remove('hidden');
+}
+
+function renderComingSoon(ads) {
+  const items = Object.entries(ads).filter(([id, a]) => a.type === 'image' || a.type === 'video');
+  const wrap = document.getElementById('comingSoonWrap');
+  const track = document.getElementById('comingSoonTrack');
+  if (!items.length) { wrap.classList.add('hidden'); return; }
+  wrap.classList.remove('hidden');
+  track.innerHTML = items.map(([id, a]) => {
+    const esc = (s) => (s || '').replace(/'/g, "\\'");
+    if (a.type === 'image') {
+      const clickAttr = a.link ? `onclick="window.open('${esc(a.link)}','_blank')" class="shrink-0 w-40 bg-panel border border-gold/30 rounded-2xl p-2.5 cursor-pointer"` : `class="shrink-0 w-40 bg-panel border border-gold/30 rounded-2xl p-2.5"`;
+      return `
+        <div ${clickAttr}>
+          <div class="relative w-full h-28 rounded-xl overflow-hidden bg-panel2 mb-2">
+            <img src="${a.imageUrl}" class="w-full h-full object-cover">
+            <span class="absolute top-1.5 left-1.5 bg-gold text-bg text-[9px] font-bold px-2 py-0.5 rounded-full">COMING SOON</span>
+          </div>
+          <p class="text-xs font-semibold truncate">${a.title || ''}</p>
+          <p class="text-[10px] text-gray-500 line-clamp-2">${a.caption || ''}</p>
+        </div>`;
+    }
+    return `
+      <div class="shrink-0 w-40 bg-panel border border-gold/30 rounded-2xl p-2.5 cursor-pointer" onclick="openVideoAd('${esc(a.videoUrl)}', '${esc(a.title)}', '${esc(a.link)}')">
+        <div class="relative w-full h-28 rounded-xl overflow-hidden bg-panel2 mb-2 flex items-center justify-center">
+          <i class="fa-solid fa-circle-play text-3xl text-gold"></i>
+          <span class="absolute top-1.5 left-1.5 bg-gold text-bg text-[9px] font-bold px-2 py-0.5 rounded-full">VIDEO</span>
+        </div>
+        <p class="text-xs font-semibold truncate">${a.title || 'Tangazo'}</p>
+      </div>`;
+  }).join('');
+}
+
+function openVideoAd(url, title, link) {
+  const yt = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/))([\w-]{6,})/);
+  let inner;
+  if (yt) {
+    inner = `<div class="aspect-video rounded-xl overflow-hidden"><iframe class="w-full h-full" src="https://www.youtube.com/embed/${yt[1]}?autoplay=1" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe></div>`;
+  } else if (/\.(mp4|webm|ogg)(\?|$)/i.test(url)) {
+    inner = `<video class="w-full rounded-xl" src="${url}" controls autoplay></video>`;
+  } else {
+    inner = `<div class="text-center py-8">
+      <i class="fa-solid fa-circle-play text-4xl text-gold mb-3"></i>
+      <p class="text-sm text-gray-400 mb-4">Video haiwezi kuchezwa hapa moja kwa moja.</p>
+      <a href="${url}" target="_blank" class="inline-block bg-gradient-to-r from-gold to-yellow-600 text-bg font-semibold px-5 py-2.5 rounded-xl text-sm">Tazama Video</a>
+    </div>`;
+  }
+  const linkBtn = (link && link !== 'undefined') ? `<a href="${link}" target="_blank" class="mt-3 block text-center w-full bg-panel2 border border-gold/40 text-gold font-semibold py-2 rounded-xl text-sm"><i class="fa-solid fa-link mr-1"></i> Fungua Link</a>` : '';
+  document.getElementById('videoContent').innerHTML = `<h3 class="font-display font-bold text-base mb-3">${title || 'Tangazo'}</h3>${inner}${linkBtn}`;
+  openModal('videoModal');
+}
+
+// ---------- MODAL HELPERS ----------
+function openModal(id) { document.getElementById(id).classList.remove('hidden'); document.getElementById(id).classList.add('flex'); }
+function closeModal(id) { document.getElementById(id).classList.add('hidden'); document.getElementById(id).classList.remove('flex'); }
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.remove('hidden');
+  setTimeout(() => t.classList.add('hidden'), 2200);
+}
+
+// ========================================================================
+// ADMIN PANEL
+// ========================================================================
+function openAdminPanel() {
+  if (!isAdminUser) return;
+  switchAdminTab('apps');
+  openModal('adminModal');
+}
+function switchAdminTab(tab) {
+  document.querySelectorAll('.admin-tab').forEach(b => b.classList.toggle('active', b.dataset.atab === tab));
+  ['apps','categories','ads','users'].forEach(t => {
+    document.getElementById('adminTab' + t.charAt(0).toUpperCase() + t.slice(1)).classList.toggle('hidden', t !== tab);
+  });
+  if (tab === 'apps') renderAdminApps();
+  if (tab === 'categories') renderAdminCategories();
+  if (tab === 'ads') renderAdminAds();
+  if (tab === 'users') renderAdminUsers();
+}
+function uploadFile(file, path) {
+  const ref = storage.ref().child(path + '/' + Date.now() + '_' + file.name.replace(/\s+/g,'_'));
+  return ref.put(file).then(snap => snap.ref.getDownloadURL());
+}
+
+// ---- ADMIN: APPS ----
+function renderAdminApps() {
+  const el = document.getElementById('adminTabApps');
+  if (!el) return;
+  const catOptions = Object.keys(allCategories).map(k => `<option value="${k}">${allCategories[k].label}</option>`).join('');
+  el.innerHTML = `
+    <div class="bg-panel2 border border-line rounded-xl p-4 mb-4">
+      <p class="text-sm font-semibold mb-3"><i class="fa-solid fa-plus mr-1 text-emerald"></i>Ongeza App</p>
+      <div class="space-y-2.5">
+        <div><label class="adm-label">Jina la App</label><input id="na_name" class="adm-input" placeholder="Mfano: Kavishe Elimu"></div>
+        <div><label class="adm-label">Category</label><select id="na_cat" class="adm-input">${catOptions}</select></div>
+        <div><label class="adm-label">Maelezo</label><textarea id="na_desc" rows="2" class="adm-input"></textarea></div>
+        <div><label class="adm-label">Picha ya App (chagua kutoka simu)</label><input id="na_icon_file" type="file" accept="image/*" class="adm-input"></div>
+        <div><label class="adm-label">Link ya kupakua App</label><input id="na_link" class="adm-input" placeholder="https://..."></div>
+        <label class="flex items-center gap-2 text-xs text-gray-400"><input id="na_locked" type="checkbox" onchange="document.getElementById('na_lockmsg_wrap').classList.toggle('hidden', !this.checked)"> Fungwa (Locked)</label>
+        <div id="na_lockmsg_wrap" class="hidden"><label class="adm-label">Ujumbe wa kufunga</label><textarea id="na_lockmsg" rows="2" class="adm-input" placeholder="Mfano: Lipa kwanza ili kupakua app hii"></textarea></div>
+        <button onclick="adminAddApp()" id="na_submit_btn" class="w-full bg-gradient-to-r from-emerald to-emeraldDeep text-bg font-semibold py-2.5 rounded-lg text-sm">Ongeza App</button>
+      </div>
+    </div>
+    <p class="text-sm font-semibold mb-2">Apps Zilizopo (${Object.keys(allApps).length})</p>
+    <div class="space-y-2">
+      ${Object.entries(allApps).map(([id, app]) => `
+        <div class="bg-panel2 border border-line rounded-xl p-3 flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-panel overflow-hidden shrink-0 flex items-center justify-center">${app.icon ? `<img src="${app.icon}" class="w-full h-full object-cover">` : `<i class="fa-solid fa-cube text-gray-600"></i>`}</div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium truncate">${app.name || ''} ${app.locked ? '<i class="fa-solid fa-lock text-gold text-[10px] ml-1"></i>' : ''}</p>
+            <p class="text-[11px] text-gray-500 truncate">${catLabel(app.category)}</p>
+          </div>
+          <button onclick="adminToggleLock('${id}')" title="Funga/Fungua" class="w-8 h-8 shrink-0 flex items-center justify-center rounded-lg bg-panel border border-line text-gold hover:border-gold"><i class="fa-solid ${app.locked ? 'fa-lock-open' : 'fa-lock'}"></i></button>
+          <button onclick="adminDeleteApp('${id}')" title="Futa" class="w-8 h-8 shrink-0 flex items-center justify-center rounded-lg bg-panel border border-line text-red-400 hover:border-red-400"><i class="fa-solid fa-trash"></i></button>
+        </div>`).join('') || '<p class="text-xs text-gray-500">Hakuna apps bado.</p>'}
+    </div>
+  `;
+}
+function adminAddApp() {
+  const name = document.getElementById('na_name').value.trim();
+  const category = document.getElementById('na_cat').value;
+  const description = document.getElementById('na_desc').value.trim();
+  const downloadLink = document.getElementById('na_link').value.trim();
+  const locked = document.getElementById('na_locked').checked;
+  const lockMessage = document.getElementById('na_lockmsg').value.trim();
+  const file = document.getElementById('na_icon_file').files[0];
+  if (!name || !category) { showToast('Jaza jina na category.'); return; }
+  const btn = document.getElementById('na_submit_btn');
+  btn.disabled = true; btn.textContent = 'Inapakia...';
+  const finish = (iconUrl) => {
+    const newRef = db.ref('apps').push();
+    newRef.set({ name, category, description, downloadLink, icon: iconUrl || '', locked: !!locked, lockMessage: lockMessage || '', createdAt: Date.now() })
+      .then(() => { showToast('App imeongezwa.'); renderAdminApps(); })
+      .catch(() => showToast('Hitilafu, jaribu tena.'))
+      .finally(() => { btn.disabled = false; btn.textContent = 'Ongeza App'; });
+  };
+  if (file) {
+    uploadFile(file, 'app-icons').then(finish).catch(() => { showToast('Kushindwa kupakia picha.'); btn.disabled = false; btn.textContent = 'Ongeza App'; });
+  } else {
+    finish('');
+  }
+}
+function adminToggleLock(id) {
+  const app = allApps[id];
+  if (!app) return;
+  if (app.locked) {
+    db.ref('apps/' + id).update({ locked: false });
+    return;
+  }
+  const msg = prompt('Andika ujumbe utakaoonekana kwa mtumiaji:', app.lockMessage || 'App hii imefungwa kwa sasa.');
+  if (msg === null) return;
+  db.ref('apps/' + id).update({ locked: true, lockMessage: msg });
+}
+function adminDeleteApp(id) {
+  if (!confirm('Una uhakika unataka kufuta app hii?')) return;
+  db.ref('apps/' + id).remove().then(() => showToast('App imefutwa.'));
+}
+
+// ---- ADMIN: CATEGORIES ----
+function renderAdminCategories() {
+  const el = document.getElementById('adminTabCategories');
+  if (!el) return;
+  el.innerHTML = `
+    <div class="bg-panel2 border border-line rounded-xl p-4 mb-4">
+      <p class="text-sm font-semibold mb-3"><i class="fa-solid fa-plus mr-1 text-emerald"></i>Ongeza Category</p>
+      <div class="space-y-2.5">
+        <div><label class="adm-label">Jina la Category</label><input id="nc_label" class="adm-input" placeholder="Mfano: Michezo"></div>
+        <div><label class="adm-label">Icon (Font Awesome class, si lazima)</label><input id="nc_icon" class="adm-input" placeholder="fa-gamepad"></div>
+        <button onclick="adminAddCategory()" class="w-full bg-gradient-to-r from-emerald to-emeraldDeep text-bg font-semibold py-2.5 rounded-lg text-sm">Ongeza Category</button>
+      </div>
+    </div>
+    <p class="text-sm font-semibold mb-2">Categories Zilizopo</p>
+    <div class="space-y-2">
+      ${Object.entries(allCategories).map(([key, c]) => `
+        <div class="bg-panel2 border border-line rounded-xl p-3 flex items-center gap-3">
+          <i class="fa-solid ${c.icon || 'fa-shapes'} text-emerald w-5 text-center"></i>
+          <p class="text-sm flex-1 truncate">${c.label}</p>
+          <button onclick="adminDeleteCategory('${key}')" class="w-8 h-8 shrink-0 flex items-center justify-center rounded-lg bg-panel border border-line text-red-400 hover:border-red-400"><i class="fa-solid fa-trash"></i></button>
+        </div>`).join('') || '<p class="text-xs text-gray-500">Hakuna categories bado.</p>'}
+    </div>
+  `;
+}
+function slugify(s) {
+  return s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+}
+function adminAddCategory() {
+  const label = document.getElementById('nc_label').value.trim();
+  const icon = document.getElementById('nc_icon').value.trim() || 'fa-shapes';
+  if (!label) { showToast('Jaza jina la category.'); return; }
+  const key = slugify(label) || ('cat_' + Date.now());
+  if (allCategories[key]) { showToast('Category hii tayari ipo.'); return; }
+  db.ref('categories/' + key).set({ label, icon }).then(() => {
+    showToast('Category imeongezwa.');
+    document.getElementById('nc_label').value = '';
+    document.getElementById('nc_icon').value = '';
+  });
+}
+function adminDeleteCategory(key) {
+  if (!confirm('Kufuta category hii hakutafuta apps zilizopo ndani yake, zitabaki bila category inayoonekana. Endelea?')) return;
+  db.ref('categories/' + key).remove().then(() => showToast('Category imefutwa.'));
+}
+
+// ---- ADMIN: MATANGAZO (ANNOUNCEMENTS) ----
+function adminAdTypeChanged() {
+  const type = document.getElementById('ad_type').value;
+  document.getElementById('ad_text_wrap').classList.toggle('hidden', type !== 'text');
+  document.getElementById('ad_image_wrap').classList.toggle('hidden', type !== 'image');
+  document.getElementById('ad_video_wrap').classList.toggle('hidden', type !== 'video');
+}
+function renderAdminAds() {
+  const el = document.getElementById('adminTabAds');
+  if (!el) return;
+  el.innerHTML = `
+    <div class="bg-panel2 border border-line rounded-xl p-4 mb-4">
+      <p class="text-sm font-semibold mb-3"><i class="fa-solid fa-plus mr-1 text-emerald"></i>Ongeza Tangazo</p>
+      <div class="space-y-2.5">
+        <div>
+          <label class="adm-label">Aina ya Tangazo</label>
+          <select id="ad_type" class="adm-input" onchange="adminAdTypeChanged()">
+            <option value="text">Maandishi (Ticker)</option>
+            <option value="image">Picha (Coming Soon)</option>
+            <option value="video">Video (Coming Soon)</option>
+          </select>
+        </div>
+        <div id="ad_text_wrap"><label class="adm-label">Maandishi</label><input id="ad_text" class="adm-input" placeholder="Mfano: App mpya inakuja wiki hii!"></div>
+        <div id="ad_image_wrap" class="hidden space-y-2.5">
+          <div><label class="adm-label">Kichwa</label><input id="ad_img_title" class="adm-input"></div>
+          <div><label class="adm-label">Maelezo mafupi</label><input id="ad_img_caption" class="adm-input"></div>
+          <div><label class="adm-label">Picha (chagua kutoka simu)</label><input id="ad_img_file" type="file" accept="image/*" class="adm-input"></div>
+          <div><label class="adm-label">Link (hiari) - itafunguka ukibofya picha</label><input id="ad_img_link" class="adm-input" placeholder="https://..."></div>
+        </div>
+        <div id="ad_video_wrap" class="hidden space-y-2.5">
+          <div><label class="adm-label">Kichwa</label><input id="ad_vid_title" class="adm-input"></div>
+          <div><label class="adm-label">Pakia Video kutoka simu (au acha wazi ukitumia link)</label><input id="ad_vid_file" type="file" accept="video/*" class="adm-input"></div>
+          <div><label class="adm-label">Au Link ya Video (YouTube/mp4)</label><input id="ad_vid_url" class="adm-input" placeholder="https://youtube.com/..."></div>
+          <div><label class="adm-label">Link ya ziada (hiari)</label><input id="ad_vid_link" class="adm-input" placeholder="https://..."></div>
+        </div>
+        <button onclick="adminAddAd()" id="ad_submit_btn" class="w-full bg-gradient-to-r from-gold to-yellow-600 text-bg font-semibold py-2.5 rounded-lg text-sm">Ongeza Tangazo</button>
+      </div>
+    </div>
+    <p class="text-sm font-semibold mb-2">Matangazo Yaliyopo (${Object.keys(allAnnouncements).length})</p>
+    <div class="space-y-2">
+      ${Object.entries(allAnnouncements).map(([id, a]) => `
+        <div class="bg-panel2 border border-line rounded-xl p-3 flex items-center gap-3">
+          <i class="fa-solid ${a.type === 'text' ? 'fa-bullhorn' : a.type === 'image' ? 'fa-image' : 'fa-video'} text-gold w-5 text-center"></i>
+          <p class="text-sm flex-1 truncate">${a.type === 'text' ? (a.text || '') : (a.title || a.type)}</p>
+          <button onclick="adminDeleteAd('${id}')" class="w-8 h-8 shrink-0 flex items-center justify-center rounded-lg bg-panel border border-line text-red-400 hover:border-red-400"><i class="fa-solid fa-trash"></i></button>
+        </div>`).join('') || '<p class="text-xs text-gray-500">Hakuna matangazo bado.</p>'}
+    </div>
+  `;
+  adminAdTypeChanged();
+}
+function adminAddAd() {
+  const type = document.getElementById('ad_type').value;
+  const btn = document.getElementById('ad_submit_btn');
+  const finish = (data) => {
+    db.ref('announcements').push({ type, ...data, createdAt: Date.now() })
+      .then(() => { showToast('Tangazo limeongezwa.'); renderAdminAds(); })
+      .catch(() => showToast('Hitilafu, jaribu tena.'))
+      .finally(() => { btn.disabled = false; });
+  };
+  btn.disabled = true;
+  if (type === 'text') {
+    const text = document.getElementById('ad_text').value.trim();
+    if (!text) { showToast('Jaza maandishi.'); btn.disabled = false; return; }
+    finish({ text });
+  } else if (type === 'image') {
+    const title = document.getElementById('ad_img_title').value.trim();
+    const caption = document.getElementById('ad_img_caption').value.trim();
+    const link = document.getElementById('ad_img_link').value.trim();
+    const file = document.getElementById('ad_img_file').files[0];
+    if (!file) { showToast('Chagua picha kwanza.'); btn.disabled = false; return; }
+    uploadFile(file, 'announcements').then(url => finish({ title, caption, link, imageUrl: url }))
+      .catch(() => { showToast('Kushindwa kupakia picha.'); btn.disabled = false; });
+  } else if (type === 'video') {
+    const title = document.getElementById('ad_vid_title').value.trim();
+    const link = document.getElementById('ad_vid_link').value.trim();
+    const url = document.getElementById('ad_vid_url').value.trim();
+    const file = document.getElementById('ad_vid_file').files[0];
+    if (file) {
+      uploadFile(file, 'announcements').then(vurl => finish({ title, link, videoUrl: vurl }))
+        .catch(() => { showToast('Kushindwa kupakia video.'); btn.disabled = false; });
+    } else if (url) {
+      finish({ title, link, videoUrl: url });
+    } else {
+      showToast('Pakia video au weka link.'); btn.disabled = false;
+    }
+  }
+}
+function adminDeleteAd(id) {
+  if (!confirm('Futa tangazo hili?')) return;
+  db.ref('announcements/' + id).remove().then(() => showToast('Tangazo limefutwa.'));
+}
+
+// ---- ADMIN: WATUMIAJI (USERS) ----
+db.ref('users').on('value', snap => {
+  allUsers = snap.val() || {};
+  if (isAdminUser) renderAdminUsers();
+});
+function renderAdminUsers() {
+  const el = document.getElementById('adminTabUsers');
+  if (!el) return;
+  const catOptions = Object.keys(allCategories).map(k => `<option value="${k}">${allCategories[k].label}</option>`).join('');
+  el.innerHTML = `
+    <p class="text-sm font-semibold mb-2">Watumiaji (${Object.keys(allUsers).length})</p>
+    <div class="space-y-3">
+      ${Object.entries(allUsers).map(([uid, u]) => {
+        const bc = u.blockedCategories || {};
+        const bcKeys = Object.keys(bc).filter(k => bc[k]);
+        return `
+        <div class="bg-panel2 border border-line rounded-xl p-3">
+          <div class="flex items-center gap-3 mb-2">
+            <div class="w-8 h-8 rounded-full bg-panel border border-line flex items-center justify-center text-xs text-gray-400"><i class="fa-regular fa-user"></i></div>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium truncate">${u.email || uid} ${u.isAdmin ? '<span class="text-gold text-[10px]">(Admin)</span>' : ''}</p>
+              <p class="text-[10px] text-gray-500">${u.blocked ? 'Amefungwa' : 'Hai'}</p>
+            </div>
+            <button onclick="adminToggleUserBlock('${uid}')" class="text-xs font-medium px-3 py-1.5 rounded-full border ${u.blocked ? 'border-emerald text-emerald' : 'border-red-500/50 text-red-400'}">${u.blocked ? 'Fungua' : 'Funga'}</button>
+          </div>
+          <div class="flex flex-wrap gap-1.5 mb-2">
+            ${bcKeys.map(k => `<span class="text-[10px] bg-panel border border-line px-2 py-1 rounded-full flex items-center gap-1">${catLabel(k)} <i class="fa-solid fa-xmark cursor-pointer text-red-400" onclick="adminUnblockCategory('${uid}','${k}')"></i></span>`).join('')}
+          </div>
+          <div class="flex gap-1.5">
+            <select id="ubc_${uid}" class="adm-input text-xs py-1.5">${catOptions}</select>
+            <button onclick="adminBlockCategory('${uid}')" class="text-xs px-3 py-1.5 rounded-lg bg-panel border border-line text-gray-300 whitespace-nowrap">Funga Category</button>
+          </div>
+        </div>`;
+      }).join('') || '<p class="text-xs text-gray-500">Hakuna watumiaji bado.</p>'}
+    </div>
+  `;
+}
+function adminToggleUserBlock(uid) {
+  const u = allUsers[uid] || {};
+  db.ref('users/' + uid).update({ blocked: !u.blocked }).then(() => showToast(!u.blocked ? 'Mtumiaji amefungwa.' : 'Mtumiaji amefunguliwa.'));
+}
+function adminBlockCategory(uid) {
+  const key = document.getElementById('ubc_' + uid).value;
+  db.ref('users/' + uid + '/blockedCategories/' + key).set(true).then(() => showToast('Category imefungwa kwa mtumiaji huyu.'));
+}
+function adminUnblockCategory(uid, key) {
+  db.ref('users/' + uid + '/blockedCategories/' + key).remove().then(() => showToast('Category imefunguliwa.'));
+}
+</script>
+</body>
+</html>
